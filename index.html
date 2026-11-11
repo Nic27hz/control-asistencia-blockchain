@@ -1,0 +1,1074 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control de Asistencia - Blockchain</title>
+
+    <!-- Ethers.js -->
+    <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+        }
+
+        body {
+            background: #f1f5f9;
+            color: #1e293b;
+            padding: 30px 15px;
+        }
+
+        .container {
+            max-width: 950px;
+            margin: auto;
+        }
+
+        header {
+            background: #172554;
+            color: white;
+            padding: 28px;
+            border-radius: 12px;
+            margin-bottom: 22px;
+        }
+
+        header h1 {
+            margin-bottom: 10px;
+        }
+
+        header p {
+            color: #cbd5e1;
+            line-height: 1.5;
+        }
+
+        .card {
+            background: white;
+            padding: 22px;
+            margin-bottom: 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+
+        h2 {
+            font-size: 19px;
+            margin-bottom: 16px;
+            color: #172554;
+        }
+
+        .connection-info {
+            display: grid;
+            gap: 10px;
+            margin-top: 15px;
+            overflow-wrap: anywhere;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: bold;
+            background: #e2e8f0;
+            color: #334155;
+        }
+
+        .connected {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .disconnected {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .role {
+            color: #1d4ed8;
+            font-weight: bold;
+        }
+
+        button {
+            border: none;
+            padding: 11px 17px;
+            border-radius: 7px;
+            background: #2563eb;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            margin-top: 8px;
+        }
+
+        button:hover {
+            background: #1d4ed8;
+        }
+
+        button:disabled {
+            background: #94a3b8;
+            cursor: not-allowed;
+        }
+
+        .secondary {
+            background: #475569;
+        }
+
+        .secondary:hover {
+            background: #334155;
+        }
+
+        .danger {
+            background: #dc2626;
+        }
+
+        .danger:hover {
+            background: #b91c1c;
+        }
+
+        input {
+            width: 100%;
+            padding: 11px;
+            border: 1px solid #cbd5e1;
+            border-radius: 7px;
+            margin: 7px 0 13px;
+            font-size: 14px;
+        }
+
+        label {
+            font-weight: bold;
+            font-size: 14px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 18px;
+        }
+
+        .full {
+            grid-column: 1 / -1;
+        }
+
+        .message {
+            padding: 13px;
+            border-radius: 8px;
+            margin-top: 12px;
+            background: #e2e8f0;
+            color: #334155;
+            overflow-wrap: anywhere;
+            line-height: 1.5;
+            white-space: pre-wrap;
+        }
+
+        .success {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .result {
+            margin-top: 14px;
+            line-height: 1.8;
+            overflow-wrap: anywhere;
+        }
+
+        .result ul {
+            padding-left: 22px;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        footer {
+            text-align: center;
+            color: #64748b;
+            font-size: 13px;
+            padding: 20px;
+        }
+
+        @media (max-width: 650px) {
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .full {
+                grid-column: auto;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <header>
+        <h1>Control de Asistencia</h1>
+        <p>
+            Aplicación descentralizada para gestionar y consultar
+            la asistencia a clases mediante tecnología Blockchain.
+        </p>
+    </header>
+
+    <!-- CONEXIÓN -->
+    <section class="card">
+        <h2>Conexión con MetaMask</h2>
+
+        <span id="connectionStatus" class="status disconnected">
+            Desconectado
+        </span>
+
+        <br>
+
+        <button id="connectButton" onclick="conectarMetaMask()">
+            Conectar MetaMask
+        </button>
+
+        <div class="connection-info">
+            <div>
+                <strong>Cuenta:</strong>
+                <span id="account">No conectada</span>
+            </div>
+
+            <div>
+                <strong>Red:</strong>
+                <span id="network">No detectada</span>
+            </div>
+
+            <div>
+                <strong>Rol:</strong>
+                <span id="role" class="role">Sin identificar</span>
+            </div>
+
+            <div>
+                <strong>Contrato:</strong>
+                <span id="contractAddress"></span>
+            </div>
+        </div>
+
+        <div id="connectionMessage" class="message">
+            Conecta tu billetera MetaMask para comenzar.
+        </div>
+    </section>
+
+    <!-- APERTURA DE ASISTENCIA -->
+    <section id="professorSection" class="card hidden">
+        <h2>1. Abrir asistencia (Profesor)</h2>
+
+        <div class="form-grid">
+            <div>
+                <label for="openId">Número de sesión</label>
+                <input type="number" id="openId" min="1" max="16"
+                       placeholder="Ejemplo: 2">
+            </div>
+
+            <div>
+                <label for="openTopic">Tema de la clase</label>
+                <input type="text" id="openTopic"
+                       placeholder="Tema de la sesión">
+            </div>
+
+            <div class="full">
+                <label for="openSecret">Palabra secreta</label>
+                <input type="text" id="openSecret"
+                       placeholder="Mínimo 12 caracteres">
+            </div>
+        </div>
+
+        <button onclick="abrirAsistencia()">
+            Abrir sesión
+        </button>
+
+        <div id="openMessage" class="message hidden"></div>
+    </section>
+
+    <!-- MARCAR ASISTENCIA -->
+    <section class="card">
+        <h2>2. Marcar asistencia</h2>
+
+        <label for="attendanceId">Número de sesión</label>
+        <input type="number" id="attendanceId" min="1" max="16"
+               placeholder="Ejemplo: 1">
+
+        <label for="attendanceSecret">Palabra secreta</label>
+        <input type="password" id="attendanceSecret"
+               placeholder="Ingrese la palabra secreta">
+
+        <button onclick="marcarAsistencia()">
+            Registrar asistencia
+        </button>
+
+        <div id="attendanceMessage" class="message hidden"></div>
+    </section>
+
+    <!-- CERRAR ASISTENCIA -->
+    <section id="closeSection" class="card hidden">
+        <h2>3. Cerrar asistencia (Profesor)</h2>
+
+        <label for="closeId">Número de sesión</label>
+        <input type="number" id="closeId" min="1" max="16"
+               placeholder="Ejemplo: 1">
+
+        <button class="danger" onclick="cerrarAsistencia()">
+            Cerrar sesión
+        </button>
+
+        <div id="closeMessage" class="message hidden"></div>
+    </section>
+
+    <!-- CONSULTAR SESIÓN -->
+    <section class="card">
+        <h2>4. Consultar sesión</h2>
+
+        <label for="consultId">Número de sesión</label>
+        <input type="number" id="consultId" min="1" max="16"
+               placeholder="Ejemplo: 1">
+
+        <button class="secondary" onclick="consultarSesion()">
+            Consultar información
+        </button>
+
+        <div id="consultResult" class="result"></div>
+    </section>
+
+    <!-- LISTAR ASISTENTES -->
+    <section class="card">
+        <h2>5. Consultar lista de asistentes</h2>
+
+        <label for="listId">Número de sesión</label>
+        <input type="number" id="listId" min="1" max="16"
+               placeholder="Ejemplo: 1">
+
+        <button class="secondary" onclick="listarAsistentes()">
+            Consultar asistentes
+        </button>
+
+        <div id="listResult" class="result"></div>
+    </section>
+
+    <footer>
+        DApp de Control de Asistencia | Red Ethereum Sepolia
+    </footer>
+
+</div>
+
+<script>
+    // ==========================================
+    // 1. CONFIGURACIÓN DEL CONTRATO
+    // ==========================================
+
+    const CONTRACT_ADDRESS =
+        "0xce1bf6BeAf714d1B9916e5aAf46E928300Bf62Fb";
+
+    const SEPOLIA_CHAIN_ID = 11155111;
+
+    // ABI generado desde Remix
+    const ABI = [
+        {
+            "inputs": [
+                {"internalType":"uint256","name":"_idSesion","type":"uint256"},
+                {"internalType":"string","name":"_temaClase","type":"string"},
+                {"internalType":"string","name":"_palabraSecreta","type":"string"}
+            ],
+            "name":"abrirAsistencia",
+            "outputs":[],
+            "stateMutability":"nonpayable",
+            "type":"function"
+        },
+        {
+            "inputs":[],
+            "stateMutability":"nonpayable",
+            "type":"constructor"
+        },
+        {
+            "anonymous":false,
+            "inputs":[
+                {"indexed":false,"internalType":"uint256","name":"idSesion","type":"uint256"},
+                {"indexed":false,"internalType":"string","name":"temaClase","type":"string"},
+                {"indexed":false,"internalType":"uint256","name":"fecha","type":"uint256"}
+            ],
+            "name":"AsistenciaAbierta",
+            "type":"event"
+        },
+        {
+            "anonymous":false,
+            "inputs":[
+                {"indexed":false,"internalType":"uint256","name":"idSesion","type":"uint256"},
+                {"indexed":false,"internalType":"uint256","name":"fecha","type":"uint256"}
+            ],
+            "name":"AsistenciaCerrada",
+            "type":"event"
+        },
+        {
+            "anonymous":false,
+            "inputs":[
+                {"indexed":false,"internalType":"address","name":"estudiante","type":"address"},
+                {"indexed":false,"internalType":"uint256","name":"idSesion","type":"uint256"},
+                {"indexed":false,"internalType":"uint256","name":"fecha","type":"uint256"}
+            ],
+            "name":"AsistenciaMarcada",
+            "type":"event"
+        },
+        {
+            "inputs":[
+                {"internalType":"uint256","name":"_idSesion","type":"uint256"}
+            ],
+            "name":"cerrarAsistencia",
+            "outputs":[],
+            "stateMutability":"nonpayable",
+            "type":"function"
+        },
+        {
+            "inputs":[
+                {"internalType":"uint256","name":"_idSesion","type":"uint256"},
+                {"internalType":"string","name":"_palabraIngresada","type":"string"}
+            ],
+            "name":"marcarAsistencia",
+            "outputs":[],
+            "stateMutability":"nonpayable",
+            "type":"function"
+        },
+        {
+            "inputs":[
+                {"internalType":"uint256","name":"_idSesion","type":"uint256"},
+                {"internalType":"address","name":"_estudiante","type":"address"}
+            ],
+            "name":"consultarAsistencia",
+            "outputs":[
+                {"internalType":"bool","name":"","type":"bool"}
+            ],
+            "stateMutability":"view",
+            "type":"function"
+        },
+        {
+            "inputs":[
+                {"internalType":"uint256","name":"_idSesion","type":"uint256"}
+            ],
+            "name":"consultarSesion",
+            "outputs":[
+                {"internalType":"uint256","name":"","type":"uint256"},
+                {"internalType":"string","name":"","type":"string"},
+                {"internalType":"bool","name":"","type":"bool"},
+                {"internalType":"uint256","name":"","type":"uint256"},
+                {"internalType":"uint256","name":"","type":"uint256"},
+                {"internalType":"uint256","name":"","type":"uint256"}
+            ],
+            "stateMutability":"view",
+            "type":"function"
+        },
+        {
+            "inputs":[],
+            "name":"MAX_SESIONES",
+            "outputs":[
+                {"internalType":"uint256","name":"","type":"uint256"}
+            ],
+            "stateMutability":"view",
+            "type":"function"
+        },
+        {
+            "inputs":[
+                {"internalType":"uint256","name":"_idSesion","type":"uint256"},
+                {"internalType":"uint256","name":"_indice","type":"uint256"}
+            ],
+            "name":"obtenerAsistente",
+            "outputs":[
+                {"internalType":"address","name":"","type":"address"}
+            ],
+            "stateMutability":"view",
+            "type":"function"
+        },
+        {
+            "inputs":[
+                {"internalType":"uint256","name":"_idSesion","type":"uint256"}
+            ],
+            "name":"obtenerListaAsistentes",
+            "outputs":[
+                {"internalType":"address[]","name":"","type":"address[]"}
+            ],
+            "stateMutability":"view",
+            "type":"function"
+        },
+        {
+            "inputs":[],
+            "name":"obtenerProfesor",
+            "outputs":[
+                {"internalType":"address","name":"","type":"address"}
+            ],
+            "stateMutability":"view",
+            "type":"function"
+        },
+        {
+            "inputs":[
+                {"internalType":"uint256","name":"_idSesion","type":"uint256"}
+            ],
+            "name":"sesionRegistrada",
+            "outputs":[
+                {"internalType":"bool","name":"","type":"bool"}
+            ],
+            "stateMutability":"view",
+            "type":"function"
+        },
+        {
+            "inputs":[
+                {"internalType":"uint256","name":"_idSesion","type":"uint256"}
+            ],
+            "name":"totalAsistentes",
+            "outputs":[
+                {"internalType":"uint256","name":"","type":"uint256"}
+            ],
+            "stateMutability":"view",
+            "type":"function"
+        },
+        {
+            "inputs":[],
+            "name":"totalSesionesRegistradas",
+            "outputs":[
+                {"internalType":"uint256","name":"","type":"uint256"}
+            ],
+            "stateMutability":"view",
+            "type":"function"
+        }
+    ];
+
+    // ==========================================
+    // 2. VARIABLES DE CONEXIÓN
+    // ==========================================
+
+    let provider;
+    let signer;
+    let contract;
+    let cuentaActual;
+    let esProfesor = false;
+
+    document.getElementById("contractAddress").textContent =
+        CONTRACT_ADDRESS;
+
+    // ==========================================
+    // 3. MENSAJES
+    // ==========================================
+
+    function mostrarMensaje(elementId, mensaje, tipo = "") {
+        const elemento = document.getElementById(elementId);
+
+        elemento.textContent = mensaje;
+        elemento.className = "message";
+
+        if (tipo) {
+            elemento.classList.add(tipo);
+        }
+
+        elemento.classList.remove("hidden");
+    }
+
+    function mostrarResultado(elementId, contenido) {
+        document.getElementById(elementId).innerHTML = contenido;
+    }
+
+    function obtenerError(error) {
+        if (error.code === 4001) {
+            return "La transacción fue rechazada desde MetaMask.";
+        }
+
+        if (error.error && error.error.message) {
+            return error.error.message;
+        }
+
+        if (error.reason) {
+            return error.reason;
+        }
+
+        if (error.data && error.data.message) {
+            return error.data.message;
+        }
+
+        return error.message || "Ocurrió un error inesperado.";
+    }
+
+    function validarSesion(id) {
+        const numero = Number(id);
+
+        if (!Number.isInteger(numero) || numero < 1 || numero > 16) {
+            throw new Error("El ID de sesión debe estar entre 1 y 16.");
+        }
+
+        return numero;
+    }
+
+    function fechaLegible(timestamp) {
+        if (timestamp.toString() === "0") {
+            return "No registrada";
+        }
+
+        return new Date(Number(timestamp) * 1000).toLocaleString("es-CO");
+    }
+
+    function verificarConexion() {
+        if (!contract || !cuentaActual) {
+            throw new Error("Primero debes conectar MetaMask.");
+        }
+    }
+
+    // ==========================================
+    // 4. CONECTAR METAMASK
+    // ==========================================
+
+    async function conectarMetaMask() {
+        try {
+            if (!window.ethereum) {
+                throw new Error(
+                    "MetaMask no está instalada en este navegador."
+                );
+            }
+
+            provider = new ethers.providers.Web3Provider(
+                window.ethereum
+            );
+
+            await provider.send("eth_requestAccounts", []);
+
+            signer = provider.getSigner();
+            cuentaActual = await signer.getAddress();
+
+            const network = await provider.getNetwork();
+
+            document.getElementById("account").textContent =
+                cuentaActual;
+
+            if (network.chainId !== SEPOLIA_CHAIN_ID) {
+                document.getElementById("network").textContent =
+                    "Red incorrecta";
+
+                throw new Error(
+                    "Debes seleccionar la red Sepolia en MetaMask."
+                );
+            }
+
+            document.getElementById("network").textContent =
+                "Ethereum Sepolia";
+
+            contract = new ethers.Contract(
+                CONTRACT_ADDRESS,
+                ABI,
+                signer
+            );
+
+            const profesor = await contract.obtenerProfesor();
+
+            esProfesor =
+                profesor.toLowerCase() === cuentaActual.toLowerCase();
+
+            document.getElementById("role").textContent =
+                esProfesor ? "Profesor" : "Estudiante";
+
+            document.getElementById("connectionStatus").textContent =
+                "Conectado";
+
+            document.getElementById("connectionStatus").className =
+                "status connected";
+
+            document.getElementById("professorSection").classList.toggle(
+                "hidden", !esProfesor
+            );
+
+            document.getElementById("closeSection").classList.toggle(
+                "hidden", !esProfesor
+            );
+
+            document.getElementById("connectButton").textContent =
+                "Billetera conectada";
+
+            document.getElementById("connectButton").disabled = true;
+
+            mostrarMensaje(
+                "connectionMessage",
+                "Conexión establecida correctamente con el contrato en Sepolia.",
+                "success"
+            );
+
+        } catch (error) {
+            mostrarMensaje(
+                "connectionMessage",
+                obtenerError(error),
+                "error"
+            );
+        }
+    }
+
+    // ==========================================
+    // 5. ABRIR ASISTENCIA
+    // ==========================================
+
+    async function abrirAsistencia() {
+        try {
+            verificarConexion();
+
+            if (!esProfesor) {
+                throw new Error(
+                    "Solo el profesor puede abrir sesiones."
+                );
+            }
+
+            const id = validarSesion(
+                document.getElementById("openId").value
+            );
+
+            const tema = document.getElementById("openTopic").value.trim();
+
+            const palabra = document.getElementById("openSecret").value;
+
+            if (!tema) {
+                throw new Error("Debes ingresar el tema de la clase.");
+            }
+
+            if (palabra.length < 12) {
+                throw new Error(
+                    "La palabra secreta debe tener al menos 12 caracteres."
+                );
+            }
+
+            const registrada = await contract.sesionRegistrada(id);
+
+            if (registrada) {
+                throw new Error(
+                    "Esta sesión ya fue registrada y no se puede reutilizar."
+                );
+            }
+
+            mostrarMensaje(
+                "openMessage",
+                "Esperando confirmación de la transacción en MetaMask..."
+            );
+
+            const tx = await contract.abrirAsistencia(
+                id,
+                tema,
+                palabra
+            );
+
+            mostrarMensaje(
+                "openMessage",
+                "Transacción enviada. Esperando confirmaciones..."
+            );
+
+            await tx.wait();
+
+            mostrarMensaje(
+                "openMessage",
+                "Sesión " + id + " abierta correctamente.\n" +
+                "Tema: " + tema + "\n" +
+                "Transacción: " + tx.hash,
+                "success"
+            );
+
+        } catch (error) {
+            mostrarMensaje(
+                "openMessage",
+                obtenerError(error),
+                "error"
+            );
+        }
+    }
+
+    // ==========================================
+    // 6. MARCAR ASISTENCIA
+    // ==========================================
+
+    async function marcarAsistencia() {
+        try {
+            verificarConexion();
+
+            const id = validarSesion(
+                document.getElementById("attendanceId").value
+            );
+
+            const palabra =
+                document.getElementById("attendanceSecret").value;
+
+            if (!palabra) {
+                throw new Error(
+                    "Debes ingresar la palabra secreta."
+                );
+            }
+
+            mostrarMensaje(
+                "attendanceMessage",
+                "Verificando sesión..."
+            );
+
+            const registrada = await contract.sesionRegistrada(id);
+
+            if (!registrada) {
+                throw new Error("La sesión no existe.");
+            }
+
+            const datos = await contract.consultarSesion(id);
+
+            if (!datos[2]) {
+                throw new Error(
+                    "La asistencia de esta sesión está cerrada."
+                );
+            }
+
+            const yaAsistio = await contract.consultarAsistencia(
+                id,
+                cuentaActual
+            );
+
+            if (yaAsistio) {
+                throw new Error(
+                    "Esta cuenta ya registró asistencia en esta sesión."
+                );
+            }
+
+            mostrarMensaje(
+                "attendanceMessage",
+                "Solicitando confirmación en MetaMask..."
+            );
+
+            const tx = await contract.marcarAsistencia(id, palabra);
+
+            mostrarMensaje(
+                "attendanceMessage",
+                "Transacción enviada. Esperando confirmaciones..."
+            );
+
+            await tx.wait();
+
+            mostrarMensaje(
+                "attendanceMessage",
+                "¡Asistencia registrada correctamente!\n" +
+                "Sesión: " + id + "\n" +
+                "Cuenta: " + cuentaActual + "\n" +
+                "Transacción: " + tx.hash,
+                "success"
+            );
+
+        } catch (error) {
+            mostrarMensaje(
+                "attendanceMessage",
+                obtenerError(error),
+                "error"
+            );
+        }
+    }
+
+    // ==========================================
+    // 7. CERRAR ASISTENCIA
+    // ==========================================
+
+    async function cerrarAsistencia() {
+        try {
+            verificarConexion();
+
+            if (!esProfesor) {
+                throw new Error(
+                    "Solo el profesor puede cerrar sesiones."
+                );
+            }
+
+            const id = validarSesion(
+                document.getElementById("closeId").value
+            );
+
+            const registrada = await contract.sesionRegistrada(id);
+
+            if (!registrada) {
+                throw new Error("La sesión no existe.");
+            }
+
+            const datos = await contract.consultarSesion(id);
+
+            if (!datos[2]) {
+                throw new Error(
+                    "La asistencia de esta sesión ya está cerrada."
+                );
+            }
+
+            mostrarMensaje(
+                "closeMessage",
+                "Esperando confirmación en MetaMask..."
+            );
+
+            const tx = await contract.cerrarAsistencia(id);
+
+            mostrarMensaje(
+                "closeMessage",
+                "Transacción enviada. Esperando confirmaciones..."
+            );
+
+            await tx.wait();
+
+            mostrarMensaje(
+                "closeMessage",
+                "La asistencia de la sesión " + id +
+                " fue cerrada correctamente.\n" +
+                "Transacción: " + tx.hash,
+                "success"
+            );
+
+        } catch (error) {
+            mostrarMensaje(
+                "closeMessage",
+                obtenerError(error),
+                "error"
+            );
+        }
+    }
+
+    // ==========================================
+    // 8. CONSULTAR SESIÓN
+    // ==========================================
+
+    async function consultarSesion() {
+        try {
+            verificarConexion();
+
+            const id = validarSesion(
+                document.getElementById("consultId").value
+            );
+
+            const datos = await contract.consultarSesion(id);
+
+            const asistio = await contract.consultarAsistencia(
+                id,
+                cuentaActual
+            );
+
+            const estado = datos[2]
+                ? "Activa"
+                : "Cerrada";
+
+            const asistencia = asistio
+                ? "Registrada"
+                : "No registrada";
+
+            mostrarResultado(
+                "consultResult",
+                `
+                <div class="message success">
+                    <strong>Información de la sesión ${datos[0].toString()}</strong>
+                    <br><br>
+                    <strong>Tema:</strong> ${escapeHTML(datos[1])}<br>
+                    <strong>Estado:</strong> ${estado}<br>
+                    <strong>Total de asistentes:</strong> ${datos[3].toString()}<br>
+                    <strong>Fecha de apertura:</strong> ${fechaLegible(datos[4])}<br>
+                    <strong>Fecha de cierre:</strong> ${fechaLegible(datos[5])}<br>
+                    <strong>Tu asistencia:</strong> ${asistencia}
+                </div>
+                `
+            );
+
+        } catch (error) {
+            mostrarResultado(
+                "consultResult",
+                `<div class="message error">${escapeHTML(obtenerError(error))}</div>`
+            );
+        }
+    }
+
+    // ==========================================
+    // 9. LISTAR ASISTENTES
+    // ==========================================
+
+    async function listarAsistentes() {
+        try {
+            verificarConexion();
+
+            const id = validarSesion(
+                document.getElementById("listId").value
+            );
+
+            const registrada = await contract.sesionRegistrada(id);
+
+            if (!registrada) {
+                throw new Error("La sesión no existe.");
+            }
+
+            const asistentes =
+                await contract.obtenerListaAsistentes(id);
+
+            let contenido = `
+                <div class="message success">
+                    <strong>Sesión ${id}</strong><br>
+                    Total de asistentes: ${asistentes.length}
+                </div>
+            `;
+
+            if (asistentes.length === 0) {
+                contenido += `
+                    <p>No hay asistentes registrados todavía.</p>
+                `;
+            } else {
+                contenido += "<ul>";
+
+                asistentes.forEach((direccion, indice) => {
+                    contenido += `
+                        <li>
+                            ${indice + 1}. ${escapeHTML(direccion)}
+                        </li>
+                    `;
+                });
+
+                contenido += "</ul>";
+            }
+
+            mostrarResultado("listResult", contenido);
+
+        } catch (error) {
+            mostrarResultado(
+                "listResult",
+                `<div class="message error">${escapeHTML(obtenerError(error))}</div>`
+            );
+        }
+    }
+
+    // ==========================================
+    // 10. PROTECCIÓN DE TEXTO HTML
+    // ==========================================
+
+    function escapeHTML(texto) {
+        return String(texto).replace(/[&<>"']/g, function (caracter) {
+            const equivalencias = {
+                "&": "&amp;",
+                "<": "&lt;",
+                ">": "&gt;",
+                '"': "&quot;",
+                "'": "&#039;"
+            };
+
+            return equivalencias[caracter];
+        });
+    }
+
+    // ==========================================
+    // 11. CAMBIOS EN METAMASK
+    // ==========================================
+
+    if (window.ethereum) {
+        window.ethereum.on("accountsChanged", function () {
+            window.location.reload();
+        });
+
+        window.ethereum.on("chainChanged", function () {
+            window.location.reload();
+        });
+    }
+
+</script>
+
+</body>
+</html>
+
